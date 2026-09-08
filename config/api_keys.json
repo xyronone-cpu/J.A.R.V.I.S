@@ -1,0 +1,16 @@
+{
+    "gemini_api_key": "AQ.Ab8RN6KsY82yWOYPiQl3u2UP25mEMFTUn0YVZIE2VCQUwpbHFA",
+    "os_system": "windows",
+    "voice_name": "Charon",
+    "assistant_name": "J.A.R.V.I.S",
+    "user_name": "",
+    "ui_color": "#00d4ff",
+    "camera_index": 0,
+    "proactive_audio": false,
+    "morning_brief_enabled": false,
+    "input_device": "",
+    "output_device": "",
+    "plugins_enabled": {
+        "remote_control": true
+    }
+}

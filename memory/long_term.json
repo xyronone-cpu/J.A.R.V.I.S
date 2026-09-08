@@ -1,0 +1,55 @@
+{
+  "identity": {
+    "birthday": {
+      "value": "September 5",
+      "updated": "2026-09-03"
+    },
+    "language": {
+      "value": "Spanish",
+      "updated": "2026-09-04"
+    }
+  },
+  "preferences": {
+    "language_preference": {
+      "value": "Spanish or Portuguese",
+      "updated": "2026-09-03"
+    },
+    "game_launch": {
+      "value": "does not play games",
+      "updated": "2026-09-04"
+    },
+    "language": {
+      "value": "Spanish",
+      "updated": "2026-09-04"
+    }
+  },
+  "projects": {
+    "jarvis_creation": {
+      "value": "User created Jarvis and is proud of the achievement",
+      "updated": "2026-09-04"
+    }
+  },
+  "relationships": {
+    "best_friend_name": {
+      "value": "Keymar (female)",
+      "updated": "2026-09-05"
+    },
+    "friend_name": {
+      "value": "Otavio",
+      "updated": "2026-09-04"
+    }
+  },
+  "wishes": {
+    "birthday_plans": {
+      "value": "going out with friends",
+      "updated": "2026-09-04"
+    }
+  },
+  "notes": {
+    "never_solved_20_equations": {
+      "value": "Never solved 20 equations simultaneously",
+      "updated": "2026-09-05"
+    }
+  },
+  "sessions": []
+}
