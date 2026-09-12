@@ -6,3 +6,4 @@ cd Mark-LII
 pip install -r requirements.txt
 python main.py
 ```
+C:/Users/Pichau/.local/bin/python3.14.exe -m pip install -r requirements.txt
