@@ -8,5 +8,5 @@ python main.py
 
 C:/Users/Pichau/.local/bin/python3.14.exe -m pip install -r requirements.txt
 C:/Users/Pichau/.local/bin/python3.14.exe main.py
-
+C:/Users/Pichau/.local/bin/python3.14.exe -m venv .venv; .\.venv\Scripts\python.exe -m pip install --upgrade pip; .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
