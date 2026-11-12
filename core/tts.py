@@ -17,7 +17,6 @@ import numpy as np
 import sounddevice as sd
 
 
-
 # USE_TF=0 stops transformers from importing TensorFlow (saves 4-8 s startup).
 # Do NOT set USE_TORCH or USE_JAX explicitly — forcing those values breaks
 # transformers' lazy-loader on certain versions, causing AutoModel and other

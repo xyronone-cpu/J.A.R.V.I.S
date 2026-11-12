@@ -1,0 +1,16 @@
+{
+  "name": "J.A.R.V.I.S.",
+  "port": By: me,
+  "orbs": [
+    {
+      "title": "Notes",
+      "path": "sample-notes",
+      "kind": "notes"
+    },
+    {
+      "title": "Props",
+      "path": "media",
+      "kind": "media"
+    }
+  ]
+}
