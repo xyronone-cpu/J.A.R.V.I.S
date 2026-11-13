@@ -136,6 +136,17 @@ class JarvisUI:
         self._win.on_remote_clicked = cb
 
     @property
+    def on_plugin_open(self):
+        return self._win.on_plugin_open
+
+    @on_plugin_open.setter
+    def on_plugin_open(self, cb):
+        self._win.on_plugin_open = cb
+
+    def open_plugin_view(self, title: str, url: str) -> bool:
+        return self._win.open_plugin_view(title, url)
+
+    @property
     def on_interrupt(self):
         return self._win.on_interrupt
 

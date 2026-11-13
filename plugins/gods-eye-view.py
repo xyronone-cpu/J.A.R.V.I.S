@@ -4,15 +4,14 @@ God's Eye View geospatial visualization plugin for Jarvis.
 import subprocess
 import time
 import urllib.request
-import webbrowser
 from pathlib import Path
 
 PLUGIN = {
     "name": "open_gods_eye_view",
     "description": (
         "Opens the God's Eye View 3D geospatial dashboard inside Jarvis by default; "
-        "the embedded viewer has a browser button. Use the system browser if no "
-        "embedded viewer is available. Spanish requests include "
+        "do not open a system browser if the embedded viewer is unavailable. "
+        "Spanish requests include "
         "'abre God's Eye View', 'abre el Ojo de Dios' and 'muéstrame el mapa'."
     ),
     "parameters": {
@@ -68,11 +67,6 @@ def run(parameters: dict, **kwargs) -> str:
         try:
             if opener("God's Eye View", gev_url):
                 return "God's Eye View está abierto dentro de Jarvis."
-        except Exception:
-            pass
-
-    try:
-        webbrowser.open(gev_url)
-        return "God's Eye View se abrió en el navegador del sistema."
-    except Exception as e:
-        return f"Fallo al abrir el navegador para God's Eye View: {e}"
+        except Exception as exc:
+            return f"No se pudo abrir God's Eye View dentro de Jarvis: {exc}"
+    return "El visor integrado de Jarvis no está disponible; no se abrió otro navegador."

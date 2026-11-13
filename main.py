@@ -705,6 +705,7 @@ class JarvisLive:
         )
         self.ui.get_plugins = self._plugin_registry.list_for_ui
         self.ui.get_plugin_settings = self._plugin_registry.settings_schemas  # ⚙ settings tab
+        self.ui.on_plugin_open = self._open_plugin_from_ui
         self.ui.request_say = self.plugin_say   # plugins: mid-task speech channel
 
         # Tool access for plugins that ORCHESTRATE other tools rather than doing
@@ -771,6 +772,19 @@ class JarvisLive:
         self.ui.on_wake_toggle   = self._ui_wake_toggle   # (enable: bool) -> str
         self.ui.on_wake_manual   = self._ui_wake_manual   # () -> toggle awake/asleep
         self.ui.on_wake_install  = self._ui_wake_install  # () -> (ok, msg)
+
+    def _open_plugin_from_ui(self, name: str) -> None:
+        if not self._plugin_registry.has(name):
+            self.ui.write_log(f"SYS: El plugin '{name}' no está disponible.")
+            return
+
+        def launch() -> None:
+            result = self._plugin_registry.run(
+                name, {}, player=self.ui, session_memory=None)
+            self.ui.write_log(f"SYS: {result}")
+
+        threading.Thread(
+            target=launch, daemon=True, name=f"open-plugin-{name}").start()
 
     # ── Wake word: state machine ─────────────────────────────────────────────
 

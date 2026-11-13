@@ -28,10 +28,28 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
-    QMainWindow, QPushButton, QScrollArea, QSizePolicy, QSplitter,
+    QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSplitter,
     QGraphicsScene, QGraphicsView, QGraphicsPixmapItem,
     QStackedWidget, QTextEdit, QVBoxLayout, QWidget, QProgressBar, QSlider,
 )
+
+_WEBENGINE_UNAVAILABLE_REASON = ""
+if sys.version_info[:2] > (3, 13):
+    QWebEnginePage = QWebEngineView = None
+    HAVE_WEBENGINE = False
+    _WEBENGINE_UNAVAILABLE_REASON = (
+        "El visor integrado de plugins requiere Python 3.13 o anterior.")
+else:
+    try:
+        from PyQt6.QtWebEngineCore import QWebEnginePage
+        from PyQt6.QtWebEngineWidgets import QWebEngineView
+        HAVE_WEBENGINE = True
+    except ImportError as _webengine_error:
+        QWebEnginePage = QWebEngineView = None
+        HAVE_WEBENGINE = False
+        _WEBENGINE_UNAVAILABLE_REASON = (
+            f"Falta PyQt6-WebEngine: {_webengine_error}. Ejecuta setup.py.")
+        print(f"[Plugins] Embedded browser unavailable ({_webengine_error}).")
 
 from gui.theme import (
     API_FILE,
@@ -95,6 +113,7 @@ from gui.widgets import (ArcLogo, CommandFrame, DataRow, HeaderBar, HoloPanel, I
 
 
 class MainWindow(QMainWindow):
+    _plugin_view_open_sig = pyqtSignal(str, str)
     _log_sig        = pyqtSignal(str)
     _state_sig      = pyqtSignal(str)
     _content_sig    = pyqtSignal(str, str)   # (title, text) — thread-safe content display
@@ -144,6 +163,7 @@ class MainWindow(QMainWindow):
 
         self.on_text_command   = None
         self.on_remote_clicked = None   # callable: () -> (url, key) | None
+        self.on_plugin_open = None      # callable: (plugin_name) -> None
         self.on_interrupt      = None   # callable: () -> None — stop JARVIS mid-speech
         self.on_voice_change   = None   # callable: () -> None — rebuild session with new voice
         self.on_audio_device_change = None  # callable: () -> None — reopen audio streams
@@ -351,6 +371,8 @@ class MainWindow(QMainWindow):
         self._hud_cam_stack.addWidget(self.hud)
         self._hud_cam_stack.addWidget(_cam_cont)
         self._hud_cam_stack.addWidget(self._video_cont)
+        self._plugin_view = self._build_plugin_view()
+        self._hud_cam_stack.addWidget(self._plugin_view)
 
         self._center_split = QSplitter(Qt.Orientation.Vertical)
         self._center_split.setHandleWidth(10)
@@ -415,6 +437,7 @@ class MainWindow(QMainWindow):
         self._quiz_sig.connect(self._show_quiz)
         self._quiz_hide_sig.connect(self._hide_quiz)
         self._review_sig.connect(self._show_review)
+        self._plugin_view_open_sig.connect(self._show_plugin_view)
         self._cam_stop = threading.Event()
 
         # Camera preview overlay (child of central widget, positioned in resizeEvent)
@@ -449,12 +472,117 @@ class MainWindow(QMainWindow):
             pw, ph,
         )
 
+    def _build_plugin_view(self) -> QWidget:
+        container = QWidget()
+        container.setStyleSheet(f"background: {C.BG};")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(8, 6, 8, 8)
+        layout.setSpacing(4)
+
+        header = QHBoxLayout()
+        self._plugin_view_title = QLabel("PLUGIN")
+        self._plugin_view_title.setFont(hud_font(9, QFont.Weight.Bold))
+        self._plugin_view_title.setStyleSheet(
+            f"color: {C.PRI}; background: transparent;")
+        header.addWidget(self._plugin_view_title)
+        header.addStretch()
+
+        def _view_btn(text: str, slot) -> QPushButton:
+            button = QPushButton(text)
+            button.setFont(hud_font(8, QFont.Weight.Bold))
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setStyleSheet(f"""
+                QPushButton {{
+                    color: {C.TEXT_DIM}; background: transparent;
+                    border: none; padding: 2px 6px;
+                }}
+                QPushButton:hover {{ color: {C.PRI}; }}
+            """)
+            button.clicked.connect(slot)
+            return button
+
+        header.addWidget(_view_btn("↻  RELOAD", self._reload_plugin_view))
+        header.addWidget(_view_btn("✕  CLOSE", self._close_plugin_view))
+        layout.addLayout(header)
+
+        if HAVE_WEBENGINE:
+            self._plugin_web = QWebEngineView(container)
+            self._plugin_page = self._plugin_web.page()
+            self._plugin_page.featurePermissionRequested.connect(
+                self._on_plugin_permission_requested)
+            layout.addWidget(self._plugin_web, stretch=1)
+        else:
+            self._plugin_web = None
+            self._plugin_page = None
+            unavailable = QLabel(
+                _WEBENGINE_UNAVAILABLE_REASON or
+                "El navegador integrado no está disponible.")
+            unavailable.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            unavailable.setWordWrap(True)
+            unavailable.setStyleSheet(f"color: {C.TEXT_DIM};")
+            layout.addWidget(unavailable, stretch=1)
+        return container
+
+    def open_plugin_view(self, title: str, url: str) -> bool:
+        """Open a plugin URL in JARVIS's central panel; safe from worker threads."""
+        if not HAVE_WEBENGINE:
+            return False
+        self._plugin_view_open_sig.emit(str(title), str(url))
+        return True
+
+    def _show_plugin_view(self, title: str, url: str) -> None:
+        if not HAVE_WEBENGINE:
+            self._log.append_log(
+                f"SYS: {_WEBENGINE_UNAVAILABLE_REASON or 'El visor integrado no está disponible.'}")
+            return
+        self._cam_stop.set()
+        if self._video_on:
+            self._on_video_close()
+        if self._plugin_web is None:
+            return
+        self._plugin_view_title.setText(f"◈  {title[:44].upper()}")
+        self._plugin_web.setUrl(QUrl(url))
+        self._hud_cam_stack.setCurrentWidget(self._plugin_view)
+
+    def _close_plugin_view(self) -> None:
+        if self._plugin_web is not None:
+            self._plugin_web.stop()
+        self._hud_cam_stack.setCurrentIndex(0)
+
+    def _reload_plugin_view(self) -> None:
+        if self._plugin_web is not None:
+            self._plugin_web.reload()
+
+    def _on_plugin_permission_requested(self, origin, feature) -> None:
+        if self._plugin_page is None:
+            return
+
+        allowed_origin = origin.host().lower() in ("127.0.0.1", "localhost")
+        requested_media = {
+            QWebEnginePage.Feature.MediaVideoCapture: "la cámara",
+            QWebEnginePage.Feature.MediaAudioCapture: "el micrófono",
+        }
+        media_name = requested_media.get(feature)
+        granted = False
+        if allowed_origin and media_name:
+            granted = QMessageBox.question(
+                self,
+                "Permitir acceso a medios",
+                f"El plugin necesita usar {media_name}. ¿Quieres permitirlo?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            ) == QMessageBox.StandardButton.Yes
+        policy = (QWebEnginePage.PermissionPolicy.PermissionGrantedByUser if granted
+                  else QWebEnginePage.PermissionPolicy.PermissionDeniedByUser)
+        self._plugin_page.setFeaturePermission(origin, feature, policy)
+
     # --- Live camera stream in HUD area ------------------------------------
     def _on_cam_stream(self, start: bool) -> None:
         if start:
             self._hud_cam_stack.setCurrentIndex(1)
         else:
-            self._hud_cam_stack.setCurrentIndex(0)
+            if self._hud_cam_stack.currentIndex() == 1:
+                self._hud_cam_stack.setCurrentIndex(0)
             self._cam_live_lbl.clear()
 
     def _on_cam_frame(self, data: bytes) -> None:
@@ -1648,6 +1776,9 @@ class MainWindow(QMainWindow):
         _btn("🧠  MEMORY", self._open_memory_panel)
         _btn("🧩  PLUGINS", self._open_plugin_manager)
         _btn("⚙  PLUGIN SETTINGS", self._open_plugin_settings)
+        _btn("🖐  BAREHANDS", lambda: self._request_plugin_open("open_barehands"))
+        _btn("🌐  GOD'S EYE VIEW",
+             lambda: self._request_plugin_open("open_gods_eye_view"))
         # The button is built here with the rest of the drawer; the panel behind
         # it — and the whole providers package — is imported on the click. The
         # drawer used to stutter for a measured 2.104 seconds because a state
@@ -2820,6 +2951,16 @@ class MainWindow(QMainWindow):
         ov.show()
         ov.raise_()
         self._plugin_manager_overlay = ov   # keep a reference so it isn't GC'd
+
+    def _request_plugin_open(self, plugin_name: str) -> None:
+        if not HAVE_WEBENGINE:
+            self._log.append_log(
+                f"SYS: {_WEBENGINE_UNAVAILABLE_REASON or 'El visor integrado no está disponible.'}")
+            return
+        if not self.on_plugin_open:
+            self._log.append_log("SYS: Los plugins todavía no están listos.")
+            return
+        self.on_plugin_open(plugin_name)
 
     def _open_plugin_settings(self):
         sections = self.get_plugin_settings() if self.get_plugin_settings else []

@@ -5,15 +5,14 @@ import subprocess
 import sys
 import time
 import urllib.request
-import webbrowser
 from pathlib import Path
 
 PLUGIN = {
     "name": "open_barehands",
     "description": (
         "Opens the Barehands hand-tracking dashboard inside Jarvis by default; "
-        "the embedded viewer has a browser button. Use the system browser if no "
-        "embedded viewer is available. Spanish requests include 'abre Barehands', "
+        "do not open a system browser if the embedded viewer is unavailable. "
+        "Spanish requests include 'abre Barehands', "
         "'inicia el control por gestos' and 'abre el panel de manos'."
     ),
     "parameters": {
@@ -71,11 +70,6 @@ def run(parameters: dict, **kwargs) -> str:
         try:
             if opener("Barehands", bare_url):
                 return "Barehands está abierto dentro de Jarvis."
-        except Exception:
-            pass
-
-    try:
-        webbrowser.open(bare_url)
-        return "Barehands se abrió en el navegador del sistema."
-    except Exception as exc:
-        return f"Falha ao abrir o navegador para o Barehands: {exc}"
+        except Exception as exc:
+            return f"No se pudo abrir Barehands dentro de Jarvis: {exc}"
+    return "El visor integrado de Jarvis no está disponible; no se abrió otro navegador."
